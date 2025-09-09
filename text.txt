@@ -1,0 +1,160 @@
+--// MidNightUI - Dark Red Minimalist UI
+-- Coloque este ModuleScript em ReplicatedStorage
+-- Necessário ter Roact em ReplicatedStorage
+
+local Roact = require(game.ReplicatedStorage.Roact)
+
+-- Tema
+local Theme = {
+	Color = {
+		Background = Color3.fromRGB(10, 10, 10),
+		Surface = Color3.fromRGB(17, 17, 17),
+		Text = Color3.fromRGB(241, 241, 241),
+		Muted = Color3.fromRGB(136, 136, 136),
+		Red = Color3.fromRGB(90, 0, 0),     -- vermelho bem escuro
+		RedActive = Color3.fromRGB(200, 0, 0), -- vermelho vivo
+	},
+	Radius = UDim.new(0, 8)
+}
+
+local MidNightUI = {}
+
+--// Button
+function MidNightUI.Button(props)
+	return Roact.createElement("TextButton", {
+		Text = props.Text or "Button",
+		Size = props.Size or UDim2.new(0, 120, 0, 36),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 16,
+		TextColor3 = Theme.Color.Text,
+		BackgroundColor3 = Theme.Color.Red,
+		AutoButtonColor = true,
+		[Roact.Event.MouseEnter] = function(rbx)
+			rbx.BackgroundColor3 = Theme.Color.RedActive
+		end,
+		[Roact.Event.MouseLeave] = function(rbx)
+			rbx.BackgroundColor3 = Theme.Color.Red
+		end,
+		[Roact.Event.Activated] = props.OnClick
+	}, {
+		UICorner = Roact.createElement("UICorner", {
+			CornerRadius = Theme.Radius
+		})
+	})
+end
+
+--// Toggle
+local Toggle = Roact.Component:extend("Toggle")
+
+function Toggle:init()
+	self:setState({
+		On = self.props.Default or false
+	})
+end
+
+function Toggle:render()
+	local size = UDim2.new(0, 40, 0, 20)
+	local knobSize = UDim2.new(0, 16, 0, 16)
+
+	return Roact.createElement("TextButton", {
+		Size = size,
+		BackgroundColor3 = self.state.On and Theme.Color.RedActive or Theme.Color.Surface,
+		Text = "",
+		[Roact.Event.Activated] = function()
+			self:setState(function(prev)
+				local newState = not prev.On
+				if self.props.OnToggle then
+					self.props.OnToggle(newState)
+				end
+				return { On = newState }
+			end)
+		end
+	}, {
+		UICorner = Roact.createElement("UICorner", {
+			CornerRadius = UDim.new(1, 0)
+		}),
+		Knob = Roact.createElement("Frame", {
+			Size = knobSize,
+			Position = self.state.On and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
+			BackgroundColor3 = self.state.On and Theme.Color.RedActive or Theme.Color.Text
+		}, {
+			UICorner = Roact.createElement("UICorner", {
+				CornerRadius = UDim.new(1, 0)
+			})
+		})
+	})
+end
+
+MidNightUI.Toggle = Toggle
+
+--// Slider
+local UserInputService = game:GetService("UserInputService")
+
+local Slider = Roact.Component:extend("Slider")
+
+function Slider:init()
+	self:setState({
+		Value = self.props.Default or 0
+	})
+end
+
+function Slider:render()
+	local width = self.props.Width or 200
+	local value = self.state.Value
+
+	return Roact.createElement("Frame", {
+		Size = UDim2.new(0, width, 0, 8),
+		BackgroundColor3 = Theme.Color.Surface,
+	}, {
+		UICorner = Roact.createElement("UICorner", {
+			CornerRadius = UDim.new(1, 0)
+		}),
+		Fill = Roact.createElement("Frame", {
+			Size = UDim2.new(value / 100, 0, 1, 0),
+			BackgroundColor3 = Theme.Color.RedActive,
+		}, {
+			UICorner = Roact.createElement("UICorner", {
+				CornerRadius = UDim.new(1, 0)
+			})
+		}),
+		Knob = Roact.createElement("Frame", {
+			Size = UDim2.new(0, 14, 0, 14),
+			Position = UDim2.new(value / 100, -7, 0.5, -7),
+			BackgroundColor3 = Theme.Color.RedActive
+		}, {
+			UICorner = Roact.createElement("UICorner", {
+				CornerRadius = UDim.new(1, 0)
+			})
+		}),
+		Input = Roact.createElement("TextButton", {
+			Size = UDim2.new(1, 0, 1, 10),
+			Position = UDim2.new(0, 0, 0, -5),
+			Text = "",
+			BackgroundTransparency = 1,
+			[Roact.Event.InputBegan] = function(_, input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					local conn
+					conn = UserInputService.InputChanged:Connect(function(change)
+						if change.UserInputType == Enum.UserInputType.MouseMovement then
+							local posX = change.Position.X - _.AbsolutePosition.X
+							local newValue = math.clamp(posX / width, 0, 1) * 100
+							self:setState({ Value = newValue })
+							if self.props.OnChanged then
+								self.props.OnChanged(newValue)
+							end
+						end
+					end)
+					UserInputService.InputEnded:Connect(function(endInput)
+						if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
+							if conn then conn:Disconnect() end
+						end
+					end)
+				end
+			end
+		})
+	})
+end
+
+MidNightUI.Slider = Slider
+
+return MidNightUI
